@@ -1,0 +1,84 @@
+name: Export features from bq search
+inputs:
+- {name: bigquery_project_id, type: String}
+- {name: bigquery_location, type: String}
+- {name: bigquery_read_instances_staging_table, type: String}
+- {name: bigquery_read_instances_query, type: String}
+- {name: feature_store_location, type: String}
+- {name: feature_store_name, type: String}
+- {name: feature_store_project_id, type: String}
+- {name: bigquery_features_export_table_uri, type: String}
+- {name: features_dict, type: JsonObject}
+- {name: timeout, type: Integer, default: '600', optional: true}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - |2
+
+      if ! [ -x "$(command -v pip)" ]; then
+          python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+      fi
+
+      PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-bigquery==2.24.1' 'kfp==1.8.11' && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp -d)
+      printf "%s" "$0" > "$program_path/ephemeral_component.py"
+      python3 -m kfp.v2.components.executor_main                         --component_module_path                         "$program_path/ephemeral_component.py"                         "$@"
+    - |2+
+
+      import kfp
+      from kfp.v2 import dsl
+      from kfp.v2.dsl import *
+      from typing import *
+
+      def export_features_from_bq_search(
+              bigquery_project_id: str,
+              bigquery_location: str,
+              bigquery_read_instances_staging_table: str, # includes project.dataset.table without bq://
+              bigquery_read_instances_query: str,
+              feature_store_location: str,
+              feature_store_name: str,
+              feature_store_project_id: str,
+              bigquery_features_export_table_uri: str, # includes project.dataset.table without bq://
+              features_dict: dict,
+              timeout: int = 600
+
+      ) -> None:
+
+          entity_type_cols, pass_through_cols = export_to_staging(
+              bigquery_project_id,
+              bigquery_location,
+              bigquery_read_instances_staging_table, # includes project.dataset.table without bq://
+              bigquery_read_instances_query,
+              timeout)
+
+          validate_staging_against_featurestore(
+              feature_store_location,
+              feature_store_name,
+              feature_store_project_id,
+              features_dict,
+              entity_type_cols,
+              bigquery_read_instances_query
+          )
+
+          export_features_to_bq(
+              feature_store_location,
+              feature_store_name,
+              feature_store_project_id,
+              bigquery_read_instances_staging_table,
+              bigquery_features_export_table_uri,
+              pass_through_cols,
+              features_dict,
+              timeout
+          )
+
+    args:
+    - --executor_input
+    - {executorInput: null}
+    - --function_to_execute
+    - export_features_from_bq_search
