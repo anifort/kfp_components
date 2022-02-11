@@ -84,7 +84,6 @@ timeout for BQ opperations and feature store export job
 
 ## Example output
 
-
 | label    | timestamp                  | entity_type_customer | tenure | monthly_charges | internet_service | entity_type_phone | battery_life | screen_size | 
 |----------|----------------------------|-----------------|--------|-----------------|------------------|-------------------|--------------|-------------|
 | churn    | 2022-02-10 23:18:21.935081 UTC | 1           | 12     | 20.00           | yes              | pixel 6           | 48           | 6.4         |
