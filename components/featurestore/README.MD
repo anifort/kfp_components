@@ -1,4 +1,4 @@
-# Feature Store Export from BQ Search
+# Features Export from BQ Search
 
 This component allows you to export features from your features store based on a BQ table.
 
