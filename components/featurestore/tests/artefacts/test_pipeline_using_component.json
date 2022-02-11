@@ -1,0 +1,168 @@
+{
+  "pipelineSpec": {
+    "components": {
+      "comp-export-features-from-bq-search": {
+        "executorLabel": "exec-export-features-from-bq-search",
+        "inputDefinitions": {
+          "parameters": {
+            "bigquery_features_export_table_uri": {
+              "type": "STRING"
+            },
+            "bigquery_location": {
+              "type": "STRING"
+            },
+            "bigquery_project_id": {
+              "type": "STRING"
+            },
+            "bigquery_read_instances_query": {
+              "type": "STRING"
+            },
+            "bigquery_read_instances_staging_table": {
+              "type": "STRING"
+            },
+            "feature_store_location": {
+              "type": "STRING"
+            },
+            "feature_store_name": {
+              "type": "STRING"
+            },
+            "feature_store_project_id": {
+              "type": "STRING"
+            },
+            "features_dict": {
+              "type": "STRING"
+            },
+            "timeout": {
+              "type": "INT"
+            }
+          }
+        }
+      }
+    },
+    "deploymentSpec": {
+      "executors": {
+        "exec-export-features-from-bq-search": {
+          "container": {
+            "args": [
+              "--executor_input",
+              "{{$}}",
+              "--function_to_execute",
+              "export_features_from_bq_search"
+            ],
+            "command": [
+              "sh",
+              "-c",
+              "\nif ! [ -x \"$(command -v pip)\" ]; then\n    python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip\nfi\n\nPIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet     --no-warn-script-location 'google-cloud-bigquery==2.24.1' 'google-cloud-aiplatform==1.10.0' 'kfp==1.8.11' && \"$0\" \"$@\"\n",
+              "sh",
+              "-ec",
+              "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef export_features_from_bq_search(\n        bigquery_project_id: str,\n        bigquery_location: str,\n        bigquery_read_instances_staging_table: str, # includes project.dataset.table without bq://\n        bigquery_read_instances_query: str,\n        feature_store_location: str,\n        feature_store_name: str,\n        feature_store_project_id: str,\n        bigquery_features_export_table_uri: str, # includes project.dataset.table without bq://\n        features_dict: dict,\n        timeout: int = 600\n) -> None:\n\n    from google.cloud import bigquery\n    from google.cloud.aiplatform_v1beta1 import FeaturestoreServiceClient\n    from google.cloud.aiplatform_v1beta1.types import (featurestore_service as featurestore_service_pb2,\n                                                       feature_selector as feature_selector_pb2,\n                                                       BigQuerySource, BigQueryDestination)\n    from collections import OrderedDict # in case dict is not created using python>=3.6\n\n    client = bigquery.Client(project=bigquery_project_id, location=bigquery_location)\n\n    overwrite_table = False\n    job_config = bigquery.QueryJobConfig(\n        write_disposition = bigquery.job.WriteDisposition.WRITE_TRUNCATE if overwrite_table else bigquery.job.WriteDisposition.WRITE_EMPTY,\n        destination = bigquery_read_instances_staging_table)\n\n    try:\n        query_job = client.query(query = bigquery_read_instances_query,\n                                 job_config = job_config)\n        query_job.result(timeout=timeout)\n        if query_job.errors:\n            raise Exception(query_job.errors)\n    except Exception as e:\n        raise e\n\n    table_dataset_metadata={}\n\n    table = client.get_table(bigquery_read_instances_staging_table)  # Make an API request.\n    table_dataset_path = \"bq://{}\".format(bigquery_read_instances_staging_table)\n    table_dataset_metadata['table_name'] = bigquery_read_instances_staging_table\n\n    if table.num_rows==0:\n        raise Exception(\"BQ table {} has no rows. Ensure that your query returns results: {}\".format(bigquery_read_instances_staging_table, bigquery_read_instances_query))\n\n    schema = OrderedDict((i.name,i.field_type) for i in table.schema)\n    entity_type_cols = []\n    pass_through_cols = []\n    found_timestamp=False\n    for key, value in schema.items():\n        if key=='timestamp':\n            found_timestamp=True\n            if value!=\"TIMESTAMP\":\n                raise ValueError(\"timestamp column must be of type TIMESTAMP\")\n        else:\n            if found_timestamp==False:\n                entity_type_cols.append(key)\n            else:\n                pass_through_cols.append(key)\n\n    if found_timestamp==False: # means timestamp column was not found so this remained False\n        raise ValueError(\"timestamp column missing from BQ table. It is required for feature store data retrieval\")\n\n    fs_path= 'projects/{fs_project}/locations/{fs_location}/featurestores/{fs_name}'.format(fs_project=feature_store_project_id,\n                                                                                            fs_location=feature_store_location,\n                                                                                            fs_name=feature_store_name)\n\n    API_ENDPOINT = \"{}-aiplatform.googleapis.com\".format(feature_store_location)\n\n    admin_client = FeaturestoreServiceClient(\n        client_options={\"api_endpoint\": API_ENDPOINT})\n\n    fs_entities = admin_client.list_entity_types(parent=fs_path).entity_types\n    fs_entities = [i.name.split('/')[-1] for i in fs_entities]\n\n    if len(set(entity_type_cols).difference(fs_entities))>0:\n        raise ValueError(\"Table column(s) {} before timestamp column do not match entities in feature store {} \".format(entity_type_cols, fs_entities))\n\n    entities_diff = set(features_dict.keys()).difference(entity_type_cols)\n    if len(entities_diff)>0:\n        raise LookupError(\"\\n Entities {} must exist in filtering query columns: {} \".format(entities_diff, bigquery_read_instances_query))\n\n    error_buffer = \"\"\n    for k,v in features_dict.items():\n        fs_features = admin_client.list_features(parent=fs_path+\"/entityTypes/{}\".format(k)).features\n        fs_features = [i.name.split('/')[-1] for i in fs_features]\n\n        missing_features = set(v).difference(fs_features)\n        if len(missing_features)>0:\n            error_buffer += \"\\n Features requested for entity [{}] do not exist: {}\".format(k, missing_features)\n\n    if error_buffer!=\"\":\n        raise LookupError(error_buffer)\n\n    fs_path= 'projects/{fs_project}/locations/{fs_location}/featurestores/{fs_name}'.format(fs_project=feature_store_project_id,\n                                                                                            fs_location=feature_store_location,\n                                                                                            fs_name=feature_store_name)\n\n    entity_type_specs_arr=[]\n\n    # Select features to read\n    for ent_type, features_arr in features_dict.items():\n        entity_type_specs_arr.append(\n            featurestore_service_pb2.BatchReadFeatureValuesRequest.EntityTypeSpec(\n                # read feature values of features subscriber_type and duration_minutes from \"bikes\"\n                entity_type_id= ent_type,\n                feature_selector= feature_selector_pb2.FeatureSelector(\n                    id_matcher=feature_selector_pb2.IdMatcher(\n                        ids=features_arr))\n            )\n        )\n\n    # Select columns to pass through\n    pass_through_fields_arr = []\n    for ptc in pass_through_cols:\n        pass_through_fields_arr.append(\n            featurestore_service_pb2.BatchReadFeatureValuesRequest.PassThroughField(\n                field_name=ptc\n            )\n        )\n\n    batch_serving_request = featurestore_service_pb2.BatchReadFeatureValuesRequest(\n        featurestore=fs_path,\n        bigquery_read_instances=BigQuerySource(input_uri = \"bq://{}\".format(bigquery_read_instances_staging_table)),\n        # Output info\n        destination=featurestore_service_pb2.FeatureValueDestination(\n            bigquery_destination=BigQueryDestination(\n                output_uri='bq://{}'.format(bigquery_features_export_table_uri))),\n        entity_type_specs=entity_type_specs_arr,\n        pass_through_fields=pass_through_fields_arr\n    )\n\n    try:\n        admin_client = FeaturestoreServiceClient(\n            client_options={\"api_endpoint\": \"{}-aiplatform.googleapis.com\".format(feature_store_location)})\n        print(admin_client.batch_read_feature_values(batch_serving_request).result(timeout=timeout))\n    except Exception as ex:\n        print(ex)\n\n"
+            ],
+            "image": "python:3.7"
+          }
+        }
+      }
+    },
+    "pipelineInfo": {
+      "name": "test-feature-store-comp"
+    },
+    "root": {
+      "dag": {
+        "tasks": {
+          "export-features-from-bq-search": {
+            "cachingOptions": {
+              "enableCache": true
+            },
+            "componentRef": {
+              "name": "comp-export-features-from-bq-search"
+            },
+            "inputs": {
+              "parameters": {
+                "bigquery_features_export_table_uri": {
+                  "componentInputParameter": "bigquery_features_export_table_uri"
+                },
+                "bigquery_location": {
+                  "componentInputParameter": "bigquery_location"
+                },
+                "bigquery_project_id": {
+                  "componentInputParameter": "bigquery_project_id"
+                },
+                "bigquery_read_instances_query": {
+                  "componentInputParameter": "bigquery_read_instances_query"
+                },
+                "bigquery_read_instances_staging_table": {
+                  "componentInputParameter": "bigquery_read_instances_staging_table"
+                },
+                "feature_store_location": {
+                  "componentInputParameter": "feature_store_location"
+                },
+                "feature_store_name": {
+                  "componentInputParameter": "feature_store_name"
+                },
+                "feature_store_project_id": {
+                  "componentInputParameter": "feature_store_project_id"
+                },
+                "features_dict": {
+                  "componentInputParameter": "features_dict"
+                },
+                "timeout": {
+                  "componentInputParameter": "timeout"
+                }
+              }
+            },
+            "taskInfo": {
+              "name": "export-features-from-bq-search"
+            }
+          }
+        }
+      },
+      "inputDefinitions": {
+        "parameters": {
+          "bigquery_features_export_table_uri": {
+            "type": "STRING"
+          },
+          "bigquery_location": {
+            "type": "STRING"
+          },
+          "bigquery_project_id": {
+            "type": "STRING"
+          },
+          "bigquery_read_instances_query": {
+            "type": "STRING"
+          },
+          "bigquery_read_instances_staging_table": {
+            "type": "STRING"
+          },
+          "feature_store_location": {
+            "type": "STRING"
+          },
+          "feature_store_name": {
+            "type": "STRING"
+          },
+          "feature_store_project_id": {
+            "type": "STRING"
+          },
+          "features_dict": {
+            "type": "STRING"
+          },
+          "timeout": {
+            "type": "INT"
+          }
+        }
+      }
+    },
+    "schemaVersion": "2.0.0",
+    "sdkVersion": "kfp-1.8.11"
+  },
+  "runtimeConfig": {
+    "gcsOutputDirectory": "gs://myfirstproject-226013/test-pipeline",
+    "parameters": {
+      "features_dict": {
+        "stringValue": "{\"customer\": [\"tenure\", \"monthly_charges\", \"internet_service\"]}"
+      },
+      "timeout": {
+        "intValue": "600"
+      }
+    }
+  }
+}
