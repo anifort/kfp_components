@@ -1,5 +1,7 @@
 from kfp.v2.dsl import (
-    component
+    component,
+    Output,
+    Dataset
 )
 
 @component(#base_image=""
@@ -16,7 +18,8 @@ def export_features_from_bq_search(
         feature_store_project_id: str,
         bigquery_features_export_table_uri: str, # includes project.dataset.table without bq://
         features_dict: dict,
-        timeout: int = 600
+        timeout: int,
+        features_table: Output[Dataset]
 ) -> None:
 
     from google.cloud import bigquery
@@ -144,6 +147,10 @@ def export_features_from_bq_search(
     except Exception as ex:
         print(ex)
 
+
+    features_table.uri = 'bq://{}'.format(bigquery_features_export_table_uri)
+
+    return
 
 
 

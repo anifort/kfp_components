@@ -9,7 +9,9 @@ inputs:
 - {name: feature_store_project_id, type: String}
 - {name: bigquery_features_export_table_uri, type: String}
 - {name: features_dict, type: JsonObject}
-- {name: timeout, type: Integer, default: '600', optional: true}
+- {name: timeout, type: Integer}
+outputs:
+- {name: features_table, type: Dataset}
 implementation:
   container:
     image: python:3.7
@@ -46,7 +48,8 @@ implementation:
               feature_store_project_id: str,
               bigquery_features_export_table_uri: str, # includes project.dataset.table without bq://
               features_dict: dict,
-              timeout: int = 600
+              timeout: int,
+              features_table: Output[Dataset]
       ) -> None:
 
           from google.cloud import bigquery
@@ -72,11 +75,10 @@ implementation:
           except Exception as e:
               raise e
 
-          table_dataset_metadata={}
 
           table = client.get_table(bigquery_read_instances_staging_table)  # Make an API request.
-          table_dataset_path = "bq://{}".format(bigquery_read_instances_staging_table)
-          table_dataset_metadata['table_name'] = bigquery_read_instances_staging_table
+          #table_dataset.path = "bq://{}".format(bigquery_read_instances_staging_table)
+          #table_dataset.metadata['table_name'] = bigquery_read_instances_staging_table
 
           if table.num_rows==0:
               raise Exception("BQ table {} has no rows. Ensure that your query returns results: {}".format(bigquery_read_instances_staging_table, bigquery_read_instances_query))
@@ -174,6 +176,11 @@ implementation:
               print(admin_client.batch_read_feature_values(batch_serving_request).result(timeout=timeout))
           except Exception as ex:
               print(ex)
+
+
+          features_table.uri = 'bq://{}'.format(bigquery_features_export_table_uri)
+
+          return
 
     args:
     - --executor_input

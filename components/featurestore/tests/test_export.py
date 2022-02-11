@@ -3,9 +3,10 @@ from components.featurestore import export
 
 bigquery_location = 'EU'
 bigquery_project_id = "myfirstproject-226013"
-bigquery_read_instances_staging_table = "myfirstproject-226013.telco.tmptable-v4"
+bigquery_read_instances_staging_table = "myfirstproject-226013.telco.tmptable-v22"
+bigquery_features_export_table_uri="myfirstproject-226013.telco.featurestable-v22"
 bigquery_read_instances_query= """
-        SELECT customerID as customer,TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)  as timestamp, Churn as label
+        SELECT customerID as customer, "Sony - CMD J5" as phone, TIMESTAMP_ADD(CURRENT_TIMESTAMP(), INTERVAL 1 DAY)  as timestamp, Churn as label
             FROM `myfirstproject-226013.telco.churn` WHERE 1=1
         """
 
@@ -14,16 +15,25 @@ feature_store_project_id = 'myfirstproject-226013'
 feature_store_name = 'telco'
 
 
-bigquery_features_export_table_uri="myfirstproject-226013.telco.featurestable-v4"
 
-my_features  = {'customer': ["tenure", "monthly_charges", "internet_service"]}
+my_features  = {'customer': ["tenure", "monthly_charges", "internet_service"],
+                'phone': ["model", "approx_price_euro"]}
 
 
-def test_pipeline_using_component():
+
+def test_pipeline_using_component_e2e():
 
     from google.cloud.aiplatform.pipeline_jobs import PipelineJob
     from kfp.v2 import compiler, dsl
+    from kfp.v2.dsl import Dataset, Input, component
     import inspect
+
+    @component()
+    def print_uri(arti: Input[Dataset]):
+        print(vars(arti))
+        print(arti.uri)
+
+
 
     pipeline_bucket = "gs://myfirstproject-226013/test-pipeline"
     @dsl.pipeline(
@@ -40,8 +50,8 @@ def test_pipeline_using_component():
             feature_store_name: str,
             feature_store_project_id: str,
             bigquery_features_export_table_uri: str, # includes project.dataset.table without bq://
-            features_dict: dict = {'customer': ["tenure", "monthly_charges", "internet_service"]},
-            timeout: int = 600
+            features_dict: dict,
+            timeout: int
     ):
 
 
@@ -57,6 +67,7 @@ def test_pipeline_using_component():
             features_dict,
             timeout
         )
+        printer_op = print_uri(arti = export_features_from_bq_search_op.outputs["features_table"])
 
     pipeline_path = './artefacts/{}.json'.format(inspect.currentframe().f_code.co_name)
 
@@ -67,6 +78,7 @@ def test_pipeline_using_component():
     pl = PipelineJob(display_name= "fs-comp-test",
                      template_path= pipeline_path,
                      location=feature_store_location,
+                     enable_caching=False,
                      parameter_values={
                          'bigquery_project_id': bigquery_project_id,
                          'bigquery_location': bigquery_location,
@@ -79,4 +91,6 @@ def test_pipeline_using_component():
                          'features_dict': my_features,
                          'timeout': 600})
 
-    print(pl.run(sync=True))
+    print(pl.run(sync=True,
+                 #service_account=""
+                 ))
