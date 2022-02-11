@@ -1,6 +1,6 @@
-# Features Export from BQ Search
+# Features Export from Vertex Feature Store using BQ Search
 
-This component allows you to export features from your features store based on a BQ table.
+This component allows you to export features from your vertex feature store based on a BQ table.
 
 The process for exporting features is as follows:
 * Create a BigQuerySource Table in BQ that contain the following information
