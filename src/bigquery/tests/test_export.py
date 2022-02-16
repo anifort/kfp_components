@@ -1,8 +1,9 @@
-from components.bigquery import export
+from src.bigquery import export
 
 import os
 import pytest
 from pytest_mock import MockerFixture
+from unittest.mock import patch
 
 bq_uri="myfirstproject-226013.telco.churn"
 gcs_uri="gs://myfirstproject-226013/telco/churn"
@@ -11,8 +12,46 @@ pipeline_project = 'myfirstproject-226013'
 pipeline_bucket = "gs://myfirstproject-226013/test-pipeline"
 pipeline_location = 'europe-west4'
 
+@pytest.fixture
+def et():
+    return MockerFixture.patch("google.cloud.bigquery.Client.extract_table")
 
-@pytest.mark.unit
+from google.cloud.bigquery.client import Client
+#@pytest.mark.unit
+#@patch("google.cloud.bigquery.Client.extract_table")
+def test_bq_export(mocker: MockerFixture):
+    from kfp.v2.dsl import Dataset, Input, component
+    from google.cloud import bigquery
+    from google.cloud.bigquery import TableReference, DatasetReference
+    from src.bigquery.export import bq_export
+    from google.cloud.bigquery.job import (
+        CopyJob,
+        CopyJobConfig,
+        ExtractJob,
+
+    )
+    ej = mocker.MagicMock(
+        spec=ExtractJob,
+        result=mocker.MagicMock(return_value=True)
+    )
+
+    mock_run = mocker.patch("google.cloud.bigquery.Client.extract_table", return_value=ej)
+
+    bq_export.python_func(
+        bq_uri,
+        gcs_uri,
+        Dataset(uri=bq_uri))
+
+    bq_project_id, bq_dataset_id, bq_table_id = bq_uri.split('.')
+    mock_run.assert_called_with(
+        TableReference(DatasetReference(bq_project_id, bq_dataset_id), bq_table_id),
+          [gcs_uri+'/data_*.csv']
+    )
+
+
+
+"""
+@pytest.mark.inte
 def test_bq_export(mocker: MockerFixture):
     from kfp.v2.dsl import Dataset, Input, component
 
@@ -70,6 +109,5 @@ def test_pipeline_using_component_e2e():
                          'bq_uri': bq_uri,
                          'gcs_uri': gcs_uri})
 
-    print(pl.run(sync=True,
-                 #service_account=""
-                 ))
+    print(pl.run(sync=True))
+"""

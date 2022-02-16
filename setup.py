@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-from components import __version__
+from src import __version__
 
 extra_test = [
     'pytest>=7.0.0',
@@ -22,7 +22,10 @@ setup(
 
     install_requires=["google-cloud-aiplatform==1.10.0",
                       "google-cloud-bigquery==2.32.0",
-                      "kfp==1.8.11"],
+                      "kfp==1.8.11",
+                      'pytest>=7.0.0',
+                      'pytest-cov>=3.0.0',
+                      'pytest-env>=0.6.2'],
 
     keywords=['python', 'kfp', 'components'],
 

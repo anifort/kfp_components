@@ -26,15 +26,15 @@ def bq_export(
     destination_uris = ["{}/{}".format(exported_dataset.uri, "data_*.csv")]
 
     client = bigquery.Client(project=bq_project_id)
-    print(type(client))
+
     extract_job = client.extract_table(
         table_ref,
         destination_uris,
         # Location must match that of the source table.
         # location="europe-west4",
     )  # API request
-    print(extract_job)
-    print(extract_job.result())  # Waits for job to complete.
+
+    extract_job.result()  # Waits for job to complete.
 
     # TODO: Check that job did not error
 

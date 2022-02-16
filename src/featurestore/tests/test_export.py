@@ -1,4 +1,4 @@
-from components.featurestore import export
+from src.featurestore import export
 
 import os
 import pytest
