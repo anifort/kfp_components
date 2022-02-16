@@ -11,7 +11,7 @@ from kfp.v2.dsl import (
 def export_features_from_bq_search(
         bigquery_project_id: str,
         bigquery_location: str,
-        bigquery_read_instances_staging_table: str, # includes project.dataset.table without bq://
+        bigquery_read_instances_staging_table_uri: str, # includes project.dataset.table without bq://
         bigquery_read_instances_query: str,
         feature_store_location: str,
         feature_store_name: str,
@@ -34,7 +34,7 @@ def export_features_from_bq_search(
     overwrite_table = False
     job_config = bigquery.QueryJobConfig(
         write_disposition = bigquery.job.WriteDisposition.WRITE_TRUNCATE if overwrite_table else bigquery.job.WriteDisposition.WRITE_EMPTY,
-        destination = bigquery_read_instances_staging_table)
+        destination = bigquery_read_instances_staging_table_uri)
 
     try:
         query_job = client.query(query = bigquery_read_instances_query,
@@ -46,12 +46,12 @@ def export_features_from_bq_search(
         raise e
 
 
-    table = client.get_table(bigquery_read_instances_staging_table)  # Make an API request.
+    table = client.get_table(bigquery_read_instances_staging_table_uri)  # Make an API request.
     #table_dataset.path = "bq://{}".format(bigquery_read_instances_staging_table)
     #table_dataset.metadata['table_name'] = bigquery_read_instances_staging_table
 
     if table.num_rows==0:
-        raise Exception("BQ table {} has no rows. Ensure that your query returns results: {}".format(bigquery_read_instances_staging_table, bigquery_read_instances_query))
+        raise Exception("BQ table {} has no rows. Ensure that your query returns results: {}".format(bigquery_read_instances_staging_table_uri, bigquery_read_instances_query))
 
     schema = OrderedDict((i.name,i.field_type) for i in table.schema)
     entity_type_cols = []
@@ -131,7 +131,7 @@ def export_features_from_bq_search(
 
     batch_serving_request = featurestore_service_pb2.BatchReadFeatureValuesRequest(
         featurestore=fs_path,
-        bigquery_read_instances=BigQuerySource(input_uri = "bq://{}".format(bigquery_read_instances_staging_table)),
+        bigquery_read_instances=BigQuerySource(input_uri = "bq://{}".format(bigquery_read_instances_staging_table_uri)),
         # Output info
         destination=featurestore_service_pb2.FeatureValueDestination(
             bigquery_destination=BigQueryDestination(

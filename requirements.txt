@@ -1,0 +1,7 @@
+google-cloud-aiplatform==1.10.0
+google-cloud-bigquery==2.32.0
+kfp==1.8.11
+pytest>=7.0.0
+pytest-cov>=3.0.0
+pytest-env>=0.6.2
+pytest-mock>=3.7.0

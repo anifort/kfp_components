@@ -1,4 +1,4 @@
-.idea/
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -129,3 +129,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom
+/components/featurestore/tests/artefacts/
+/components/featurestore/tests/export_features_from_bq_search.yaml
+.idea/
+/venv*/
+/export_features_from_bq_search.yaml
