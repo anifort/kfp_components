@@ -12,13 +12,14 @@ pipeline_project = 'myfirstproject-226013'
 pipeline_bucket = "gs://myfirstproject-226013/test-pipeline"
 pipeline_location = 'europe-west4'
 
+"""
 @pytest.fixture
 def et():
     return MockerFixture.patch("google.cloud.bigquery.Client.extract_table")
+"""
 
 from google.cloud.bigquery.client import Client
-#@pytest.mark.unit
-#@patch("google.cloud.bigquery.Client.extract_table")
+@pytest.mark.unit
 def test_bq_export(mocker: MockerFixture):
     from kfp.v2.dsl import Dataset, Input, component
     from google.cloud import bigquery
