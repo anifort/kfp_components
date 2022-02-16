@@ -136,3 +136,4 @@ dmypy.json
 .idea/
 /venv*/
 /export_features_from_bq_search.yaml
+/src/bigquery/tests/artefacts/test_pipeline_using_component_e2e.json
