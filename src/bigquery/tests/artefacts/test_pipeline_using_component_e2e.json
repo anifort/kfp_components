@@ -42,7 +42,7 @@
               "sh",
               "-ec",
               "program_path=$(mktemp -d)\nprintf \"%s\" \"$0\" > \"$program_path/ephemeral_component.py\"\npython3 -m kfp.v2.components.executor_main                         --component_module_path                         \"$program_path/ephemeral_component.py\"                         \"$@\"\n",
-              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef bq_export(\n        bq_uri: str,\n        gcs_uri: str,\n        exported_dataset: Output[Dataset]\n) -> None:\n\n    from google.cloud import bigquery\n    import logging\n\n    bq_project_id, bq_dataset_id, bq_table_id = bq_uri.split('.')\n\n    dataset_ref = bigquery.DatasetReference(bq_project_id, bq_dataset_id)\n    table_ref = dataset_ref.table(bq_table_id)\n\n    exported_dataset.uri = gcs_uri\n\n    destination_uris = [\"{}/{}\".format(exported_dataset.uri, \"data_*.csv\")]\n\n    client = bigquery.Client(project=bq_project_id)\n    print(type(client))\n    extract_job = client.extract_table(\n        table_ref,\n        destination_uris,\n        # Location must match that of the source table.\n        # location=\"europe-west4\",\n    )  # API request\n    print(extract_job)\n    print(extract_job.result())  # Waits for job to complete.\n\n    # TODO: Check that job did not error\n\n    logging.info(\n        \"Exported {}:{}.{} to {}\".format(\n            bq_project_id,\n            bq_dataset_id,\n            bq_table_id,\n            exported_dataset.uri)\n    )\n    return None\n\n"
+              "\nimport kfp\nfrom kfp.v2 import dsl\nfrom kfp.v2.dsl import *\nfrom typing import *\n\ndef bq_export(\n        bq_uri: str,\n        gcs_uri: str,\n        exported_dataset: Output[Dataset]\n) -> None:\n\n    from google.cloud import bigquery\n    import logging\n\n    bq_project_id, bq_dataset_id, bq_table_id = bq_uri.split('.')\n\n    dataset_ref = bigquery.DatasetReference(bq_project_id, bq_dataset_id)\n    table_ref = dataset_ref.table(bq_table_id)\n\n    exported_dataset.uri = gcs_uri\n\n    destination_uris = [\"{}/{}\".format(exported_dataset.uri, \"data_*.csv\")]\n\n    client = bigquery.Client(project=bq_project_id)\n\n    extract_job = client.extract_table(\n        table_ref,\n        destination_uris,\n        # Location must match that of the source table.\n        # location=\"europe-west4\",\n    )  # API request\n\n    extract_job.result()  # Waits for job to complete.\n\n    # TODO: Check that job did not error\n\n    logging.info(\n        \"Exported {}:{}.{} to {}\".format(\n            bq_project_id,\n            bq_dataset_id,\n            bq_table_id,\n            exported_dataset.uri)\n    )\n    return None\n\n"
             ],
             "image": "python:3.7"
           }
@@ -73,7 +73,7 @@
               }
             },
             "taskInfo": {
-              "name": "bq-export"
+              "name": "export_data_bq"
             }
           }
         }

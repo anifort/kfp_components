@@ -36,8 +36,7 @@ jobs:
           pip install pytest-mock>=3.7.0
         # Run the tests. I'm using pytest and the file is in the tests directory.
       - name: Run tests
-        run: python -m pytest -m "not inte" --cov=src --cov-config=./coverage.ini \
-  --cov-report=term-missing --cov-fail-under=60 -s -v -c custom_pytest.ini
+        run: python -m pytest -m "not inte" --cov=src --cov-config=./coverage.ini --cov-report=term-missing --cov-fail-under=60 -s -v -c custom_pytest.ini
       - name: Lint with flake8
         run: |
           pip install flake8

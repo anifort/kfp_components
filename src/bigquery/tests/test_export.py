@@ -18,19 +18,14 @@ def et():
     return MockerFixture.patch("google.cloud.bigquery.Client.extract_table")
 """
 
-from google.cloud.bigquery.client import Client
 @pytest.mark.unit
-def test_bq_export(mocker: MockerFixture):
-    from kfp.v2.dsl import Dataset, Input, component
-    from google.cloud import bigquery
+def test_bq_export_unit(mocker: MockerFixture):
+    from kfp.v2.dsl import Dataset
     from google.cloud.bigquery import TableReference, DatasetReference
     from src.bigquery.export import bq_export
-    from google.cloud.bigquery.job import (
-        CopyJob,
-        CopyJobConfig,
-        ExtractJob,
+    from google.cloud.bigquery.job import ExtractJob
 
-    )
+
     ej = mocker.MagicMock(
         spec=ExtractJob,
         result=mocker.MagicMock(return_value=True)
@@ -41,26 +36,29 @@ def test_bq_export(mocker: MockerFixture):
     bq_export.python_func(
         bq_uri,
         gcs_uri,
-        Dataset(uri=bq_uri))
+        project=pipeline_project,
+        location=pipeline_location,
+        exported_dataset=Dataset(uri=bq_uri))
 
     bq_project_id, bq_dataset_id, bq_table_id = bq_uri.split('.')
     mock_run.assert_called_with(
         TableReference(DatasetReference(bq_project_id, bq_dataset_id), bq_table_id),
-          [gcs_uri+'/data_*.csv']
+        [gcs_uri+'/data_*.csv'],
+        'myfirstproject-226013',
+        'europe-west4'
     )
 
-
-
-"""
 @pytest.mark.inte
-def test_bq_export(mocker: MockerFixture):
-    from kfp.v2.dsl import Dataset, Input, component
+def test_bq_export_int(mocker: MockerFixture):
+    from kfp.v2.dsl import Dataset
 
     dataset = mocker.Mock(spec=Dataset, uri = gcs_uri)
     export.bq_export.python_func(
         bq_uri,
         gcs_uri,
-        dataset)
+        project=pipeline_project,
+        location=pipeline_location,
+        exported_dataset=Dataset(uri=bq_uri))
 
 
 @pytest.mark.inte
@@ -69,7 +67,6 @@ def test_pipeline_using_component_e2e():
 
     from google.cloud.aiplatform.pipeline_jobs import PipelineJob
     from kfp.v2 import compiler, dsl
-    from kfp.v2.dsl import Dataset, Input, component
     import inspect
 
     from datetime import datetime
@@ -93,6 +90,7 @@ def test_pipeline_using_component_e2e():
             bq_uri,
             gcs_uri
         )
+        export_features_from_bq_search_op.set_display_name("export_data_bq")
 
     compiler.Compiler().compile(
         pipeline_func=pipeline,
@@ -111,4 +109,3 @@ def test_pipeline_using_component_e2e():
                          'gcs_uri': gcs_uri})
 
     print(pl.run(sync=True))
-"""
