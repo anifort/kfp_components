@@ -34,10 +34,10 @@ def test_bq_export_unit(mocker: MockerFixture):
     mock_run = mocker.patch("google.cloud.bigquery.Client.extract_table", return_value=ej)
 
     bq_export.python_func(
-        bq_uri,
-        gcs_uri,
+        bq_uri=bq_uri,
         project=pipeline_project,
         location=pipeline_location,
+        gcs_uri=gcs_uri,
         exported_dataset=Dataset(uri=bq_uri))
 
     bq_project_id, bq_dataset_id, bq_table_id = bq_uri.split('.')
