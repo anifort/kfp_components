@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "kfp_components"
+version = "0.1.0"
+description = ""
+authors = ["aniftos <aniftos@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "3.9.10"
+google-cloud-aiplatform = "1.10.0"
+kfp = "1.8.11"
+google-cloud-bigquery = "2.32.0"
+
+
+[tool.poetry.dev-dependencies]
+pytest = "7.0.0"
+pytest-cov = "3.0.0"
+pytest-env = "0.6.2"
+pytest-mock = "3.7.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

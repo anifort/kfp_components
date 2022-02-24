@@ -10,14 +10,13 @@ from kfp.v2.dsl import (
 def bq_export(
         bq_uri: str,
         project: str,
-        location: str,
+        location: str, # location of extract job - must match location of dataset
         gcs_uri: str,
         exported_dataset: Output[Dataset]
 ) -> None:
 
     from google.cloud import bigquery
     import logging
-
 
     if gcs_uri.endswith('/'):
         gcs_uri = gcs_uri[:-1]
@@ -32,15 +31,15 @@ def bq_export(
 
     exported_dataset.uri = gcs_uri
 
-    destination_uris = ["{}/{}".format(exported_dataset.uri, "data_*.csv")]
+    destination_uris = ["{}/{}".format(exported_dataset.uri, "data2_*.csv")]
 
     client = bigquery.Client(project=bq_project_id)
 
     extract_job = client.extract_table(
-        table_ref,
-        destination_uris,
-        project,
-        location
+        source= table_ref,
+        destination_uris=destination_uris,
+        project=project,
+        location=location
     )  # API request
 
     extract_job.result()  # Waits for job to complete.

@@ -55,9 +55,9 @@ def test_bq_export_int(mocker: MockerFixture):
     dataset = mocker.Mock(spec=Dataset, uri = gcs_uri)
     export.bq_export.python_func(
         bq_uri,
-        gcs_uri,
         project=pipeline_project,
-        location=pipeline_location,
+        location='EU',
+        gcs_uri=gcs_uri,
         exported_dataset=Dataset(uri=bq_uri))
 
 
@@ -82,12 +82,16 @@ def test_pipeline_using_component_e2e():
     )
     def pipeline(
             bq_uri: str,
+            project: str,
+            location: str,
             gcs_uri: str
     ):
 
 
         export_features_from_bq_search_op = export.bq_export(
             bq_uri,
+            project,
+            location,
             gcs_uri
         )
         export_features_from_bq_search_op.set_display_name("export_data_bq")
@@ -106,6 +110,8 @@ def test_pipeline_using_component_e2e():
                      enable_caching=False,
                      parameter_values={
                          'bq_uri': bq_uri,
+                         'project': pipeline_project,
+                         'location': 'EU',
                          'gcs_uri': gcs_uri})
 
     print(pl.run(sync=True))
