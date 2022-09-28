@@ -36,7 +36,7 @@ example: project.dataset.table
 #### bigquery_read_instances_query (str)
 The query that connets entity type ids for export.
 This query is flexible and the user can use it an any way for joins an filtering, as long as it matches the following
-schema. First columns before timestamp are entity type columns that match your feature store. Then you have a timestamp 
+schema. First columns before timestamp are entity type columns. The name of the entity type returned by the query should match your feature store entity name (i.e must be identical). Then you have a timestamp 
 column followed by any column you want to pass through variables, such us a "label" column
 
 example:
