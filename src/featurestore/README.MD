@@ -11,7 +11,7 @@ The process for exporting features is as follows:
 
 ### ! This component automates the above process ! 
 The component allows you to submit a search query for an export job. It runs necessary validations and the end result is
-the creation of a table with the requested features
+the creation of a table with the requested features. This table can then be used for other down stream processes such as model training.
 
 
 ---
