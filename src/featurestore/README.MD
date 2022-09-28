@@ -37,7 +37,7 @@ example: project.dataset.table
 The query that connets entity type ids for export.
 This query is flexible and the user can use it an any way for joins an filtering, as long as it matches the following
 schema. First columns before timestamp are entity type columns. The name of the entity type returned by the query should match your feature store entity name (i.e must be identical). Then you have a timestamp 
-column followed by any column you want to pass through variables, such us a "label" column
+column followed by any column you want to pass through (pass through columns are ignored by feature store but appear on the export table) to the output table, such us a "label" column
 
 example:
 ```SQL
