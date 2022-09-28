@@ -9,7 +9,7 @@ The process for exporting features is as follows:
   * **Pass Through Columns:** Columns that contain pass through values. This columns will not be processed by the features store and they will simply appear in the output table with the exported features
 * Submit the BigQuerySource Table to a Batch Feature Values export job. The results will be exported at a destination table
 
-### ! This component automates the above process easy ! 
+### ! This component automates the above process ! 
 The component allows you to submit a search query for an export job. It runs necessary validations and the end result is
 the creation of a table with the requested features
 
